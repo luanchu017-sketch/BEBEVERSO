@@ -1,0 +1,139 @@
+
+  0.48, 16, 12),
+  new THREE.MeshStandardMaterial({ color: 0xffcc99 })
+);
+head.position.y = 2.15;
+player.add(head);
+
+const hair = new THREE.Mesh(
+  new THREE.SphereGeometry(0.49, 12, 8),
+  new THREE.MeshStandardMaterial({ color: 0x352010 })
+);
+hair.position.set(0, 2.42, -0.04);
+hair.scale.set(1, 0.65, 1);
+player.add(hair);
+
+player.position.set(0, 0, 0);
+scene.add(player);
+
+// Estrelas para coletar
+const stars = [];
+const starGeometry = new THREE.OctahedronGeometry(0.55);
+const starMaterial = new THREE.MeshStandardMaterial({
+  color: 0xffdd00,
+  emissive: 0x664400
+});
+
+for (let i = 0; i < 12; i++) {
+  const star = new THREE.Mesh(starGeometry, starMaterial);
+  star.position.set(
+    (Math.random() - 0.5) * 5,
+    1.2,
+    -5 - i * 7
+  );
+  scene.add(star);
+  stars.push(star);
+}
+
+// Controles do celular
+const keys = {};
+document.querySelectorAll("[data-key]").forEach(button => {
+  const key = button.dataset.key;
+
+  button.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    keys[key] = true;
+  });
+
+  for (const eventName of ["pointerup", "pointercancel", "lostpointercapture"]) {
+    button.addEventListener(eventName, () => keys[key] = false);
+  }
+
+  button.addEventListener("pointerleave", () => keys[key] = false);
+});
+
+let verticalSpeed = 0;
+let grounded = true;
+let score = 0;
+
+document.getElementById("jump").addEventListener("pointerdown", e => {
+  e.preventDefault();
+  if (grounded) {
+    verticalSpeed = 0.19;
+    grounded = false;
+  }
+});
+
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const speed = 7 * dt;
+
+  if (keys.up) player.position.z -= speed;
+  if (keys.down) player.position.z += speed;
+  if (keys.left) player.position.x -= speed;
+  if (keys.right) player.position.x += speed;
+
+  player.position.x = THREE.MathUtils.clamp(
+    player.position.x, -3.3, 3.3
+  );
+
+  // Pulo com gravidade
+  verticalSpeed -= 0.55 * dt;
+  player.position.y += verticalSpeed;
+
+  if (player.position.y <= 0) {
+    player.position.y = 0;
+    verticalSpeed = 0;
+    grounded = true;
+  }
+
+  // Girar e coletar estrelas
+  for (let i = stars.length - 1; i >= 0; i--) {
+    const star = stars[i];
+    star.rotation.y += 2 * dt;
+    star.rotation.x += dt;
+
+    if (player.position.distanceTo(star.position) < 1.3) {
+      scene.remove(star);
+      stars.splice(i, 1);
+      score++;
+      document.getElementById("score").textContent = score;
+
+      if (score === 12) {
+        document.getElementById("message").textContent =
+          "🏆 PARABÉNS! Você coletou todas as estrelas!";
+      }
+    }
+  }
+
+  // Câmera acompanha o personagem
+  const targetCamera = new THREE.Vector3(
+    player.position.x,
+    player.position.y + 5,
+    player.position.z + 9
+  );
+
+  camera.position.lerp(targetCamera, 0.08);
+  camera.lookAt(
+    player.position.x,
+    player.position.y + 1,
+    player.position.z - 2
+  );
+
+  renderer.render(scene, camera);
+}
+
+window.addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+animate();
+</script>
+</body>
+</html>
